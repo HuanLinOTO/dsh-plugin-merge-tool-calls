@@ -51,13 +51,25 @@ export function apply(ctx: ClientContext, config: Partial<MergeToolCallsConfig> 
   // `ctx.betterLocale` (published by dsh-plugin-better-locale) so a selected
   // override language (with DSH on 'en') replaces the row copy. The service
   // is optional — no better-locale, no dicts.
-  const betterLocale = ctx.get('betterLocale') as BetterLocaleOverrideStore | undefined
-  if (betterLocale !== undefined) {
-    ctx.effect(
-      () => betterLocale.register(NS, dicts),
-      'merge-tool-calls: better-locale override dicts',
-    )
-  }
+  // Activation-order-safe: re-check ctx.get('betterLocale') on every locale
+  // revision bump (better-locale bumps on activation + override switch).
+  ctx.effect(() => {
+    let dispose: (() => void) | undefined
+    const sync = (): void => {
+      dispose?.()
+      dispose = undefined
+      const store = ctx.get('betterLocale') as BetterLocaleOverrideStore | undefined
+      if (store !== undefined) {
+        dispose = store.register(NS, dicts)
+      }
+    }
+    sync()
+    const unsubscribe = ctx.locale.subscribe(sync)
+    return () => {
+      unsubscribe()
+      dispose?.()
+    }
+  }, 'merge-tool-calls: better-locale override dicts')
 
   const toolNames = cfg.tools.length === 0 ? ALL_TOOL_NAMES : [...new Set(cfg.tools)]
   for (const tool of toolNames) {
