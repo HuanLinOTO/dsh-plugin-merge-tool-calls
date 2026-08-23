@@ -16,6 +16,7 @@ import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-tool/client'
 import type {} from '@deepseek-ai/dsh-client-ui-slots'
 import { DEFAULT_MERGE_CONFIG, type MergeToolCallsConfig } from '../types.ts'
+import { dicts } from './dictionaries.ts'
 import { en, NS, zh, type MergeToolCallsKey } from './locales.ts'
 import { MergedToolRow } from './rows.tsx'
 import { installStyles } from './styles.ts'
@@ -31,6 +32,11 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 /** Required services: the slot registry (toolview shadowing) and locale. */
 export const inject = ['slots', 'locale']
 
+/** Structural view of better-locale's override store (optional; no runtime dep). */
+interface BetterLocaleOverrideStore {
+  register(ns: string, dicts: Record<string, Record<string, string>>): () => void
+}
+
 /**
  * Register one shadowed toolview per grouped tool.
  * @param ctx - client root context.
@@ -40,6 +46,18 @@ export function apply(ctx: ClientContext, config: Partial<MergeToolCallsConfig> 
   const cfg: MergeToolCallsConfig = { ...DEFAULT_MERGE_CONFIG, ...config }
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'merge-tool-calls: dictionaries')
   ctx.effect(installStyles, 'merge-tool-calls: styles')
+
+  // Optional third-language overrides: register the 19-language dicts into
+  // `ctx.betterLocale` (published by dsh-plugin-better-locale) so a selected
+  // override language (with DSH on 'en') replaces the row copy. The service
+  // is optional — no better-locale, no dicts.
+  const betterLocale = ctx.get('betterLocale') as BetterLocaleOverrideStore | undefined
+  if (betterLocale !== undefined) {
+    ctx.effect(
+      () => betterLocale.register(NS, dicts),
+      'merge-tool-calls: better-locale override dicts',
+    )
+  }
 
   const toolNames = cfg.tools.length === 0 ? ALL_TOOL_NAMES : [...new Set(cfg.tools)]
   for (const tool of toolNames) {

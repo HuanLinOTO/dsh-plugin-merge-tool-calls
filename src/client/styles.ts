@@ -85,15 +85,22 @@ export const CSS = `
 .mtc-inspect:hover { background: var(--dsw-alias-interactive-bg-hover-solid); color: var(--dsw-alias-label-primary); }
 
 /* Compact child rows: each is the main row's tail structure — [sep dot][path].
-   The dot/path columns are set at runtime by the component (it measures the
+   The dot/path column is set at runtime by the component (it measures the
    main row's sep offset and sets the --mtc-sep-left custom property on the
-   root), so this is only the pre-measure fallback.
+   root); this is only the pre-measure fallback.
 
    The .mtc-children-collapse wrapper animates the block's height with a
    grid-template-rows 0fr↔1fr transition (children stay in the DOM while
    collapsing, so the slide is smooth instead of popping out). The vertical
    margin lives on the wrapper (not .mtc-children) so it doesn't leak past the
-   0fr row when collapsed. */
+   0fr row when collapsed.
+
+   The sep-left indent lives on .mtc-child-row (not .mtc-children) so the
+   expanded .mtc-child-body can align back to the root's left edge via a plain
+   4px margin. When the indent was on .mtc-children + a negative-margin
+   pull-back on .mtc-child-body, the body's left portion was clipped by
+   .mtc-children's overflow:hidden (which is required for the grid collapse
+   animation). */
 .mtc-children-collapse {
   display: grid;
   grid-template-rows: 0fr;
@@ -106,7 +113,7 @@ export const CSS = `
 }
 .mtc-children {
   display: flex; flex-direction: column; gap: 1px;
-  margin: 0 0 0 var(--mtc-sep-left, 61px);
+  margin: 0;
   min-width: 0; min-height: 0; overflow: hidden;
   opacity: 0;
   transition: opacity 150ms ease-out;
@@ -118,7 +125,7 @@ export const CSS = `
 .mtc-child { display: flex; flex-direction: column; min-width: 0; }
 .mtc-child-row {
   display: flex; align-items: center; gap: 0; min-width: 0; height: 20px;
-  margin: 0; padding: 0; border: 0; border-radius: 4px; background: none;
+  margin: 0 0 0 var(--mtc-sep-left, 61px); padding: 0; border: 0; border-radius: 4px; background: none;
   font: inherit; text-align: left; color: var(--dsw-alias-label-secondary); cursor: pointer;
 }
 .mtc-child-row:hover { background: var(--dsw-alias-interactive-bg-hover); color: var(--dsw-alias-label-primary); }
@@ -141,10 +148,10 @@ export const CSS = `
 .mtc-child-path-link:hover { color: var(--dsw-alias-label-primary); text-decoration-color: currentColor; }
 .mtc-child-state { flex: none; font-size: 11px; line-height: 16px; color: var(--dsw-alias-label-tertiary); }
 .mtc-child-state[data-error] { color: var(--dsw-alias-state-error-primary); }
-/* The expanded child card must not inherit the children block's sep indent:
-   pull its left edge back to the main card body's column (root + 4px) so the
-   card spans the card width instead of leaving a blank gutter on its left. */
-.mtc-child-body { margin: 2px 0 2px calc(4px - var(--mtc-sep-left, 61px)); min-width: 0; }
+/* The expanded child card aligns to the main card body's column (root + 4px).
+   No negative-margin pull-back is needed because .mtc-children no longer
+   carries the sep-left indent — only .mtc-child-row does. */
+.mtc-child-body { margin: 2px 0 2px 4px; min-width: 0; }
 
 .mtc-visually-hidden {
   position: absolute; width: 1px; height: 1px; overflow: hidden;

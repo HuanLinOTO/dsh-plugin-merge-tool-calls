@@ -28,6 +28,7 @@ function stubCtx() {
     locale: {
       register: (_ns: string, _dict: unknown) => () => {},
     },
+    get: () => undefined,
     effect: (fn: () => unknown) => {
       effects.push(fn)
       return () => {}
