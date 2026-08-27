@@ -10,7 +10,7 @@
  *
  * @module @dsh-external/dsh-plugin-merge-tool-calls/client
  */
-import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client';
+import type { Context as ClientContext } from '@deepseek-ai/cordis';
 import { type MergeToolCallsConfig } from '../types.ts';
 import { type MergeToolCallsKey } from './locales.ts';
 declare module '@deepseek-ai/dsh-client-ui-slots' {

@@ -21,7 +21,7 @@
 ## 工作原理
 
 - 通过 keyed slot `tool.call.toolview` 的 shadow 机制（`priority: -1`，最低者渲染）接管工具的卡片；`tools: []` 时接管全部内置通用行工具（见 `src/client/tool-names.ts`），非空列表为显式白名单（任意 wire 名均可）。
-- 组件经 `useSession` 读取聊天快照，用 `conversationContextKey('tool-call', callId)` 定位自身节点，在 `chat.order` 上前后扫描连续调用，按 `maxGroupSize` 分组。一组只合并**同名或同家族**调用：同名必合；已知家族（`grep`+`glob`、`bash`+`pwsh`、`read`+`web_fetch`）跨名合；未知工具名（variant `others`）仅与自身合，不相关的工具不会混进同一张卡。
+- 组件经 `useChat` 读取聊天快照，在 order + node store 中按 call id 定位自身节点，前后扫描连续调用，按 `maxGroupSize` 分组。一组只合并**同名或同家族**调用：同名必合；已知家族（`grep`+`glob`、`bash`+`pwsh`、`read`+`web_fetch`）跨名合；未知工具名（variant `others`）仅与自身合，不相关的工具不会混进同一张卡。
 - 组首座位渲染合并卡片；组内其余座位渲染 `null`，由注入的样式规则
   `[data-chat-flow-kind="tool-call"]:has([data-slot="tool.call.toolview"]:empty) { display: none; }`
   将其从流中收起（与内置 `.flowItem:empty` 语义一致；渲染器为每个 toolview 包一层
@@ -45,15 +45,16 @@
 前置：本机有 DSH checkout（`../dsh`，只读，仅类型引用）。
 
 ```sh
-pnpm install            # 安装 registry 依赖（react/vitest/tsdown/cordis/schemastery…）
-pnpm run typecheck      # tsc --noEmit；@deepseek-ai/* 类型来自已发布的 0.1.0-rc.6 devDeps
+pnpm install            # 安装 registry 依赖（react/vitest/tsdown/schemastery…）
+pnpm run typecheck      # tsc --noEmit；@deepseek-ai/* 类型来自本机 DSH checkout 的 node_modules junction
 pnpm test               # vitest：纯逻辑 + jsdom 组件 + 注册形态
 pnpm run build          # tsdown + tsc → lib/index.js、lib/invariant.js、lib/client.js、lib/types/
 ```
 
-注意：`@deepseek-ai/*` 是宿主提供的 peer，开发期以 devDependencies 安装**已发布**的
-`0.1.0-rc.6` 类型（其完整依赖图已发布，可直接安装）；测试期经
-`vitest.config.ts` 的 alias 把 dsh 包指向 `tests/stubs/` 测试替身，组件测试无需宿主包。
+注意：alpha 版 DSH 未发 npm，`@deepseek-ai/*` peer 类型在开发期经 `node_modules/@deepseek-ai/*`
+junction 指向本机 DSH checkout（`../dsh` 的 `vendor/cordis` 与 `packages/**`）；`@deepseek-ai/*`
+在 client half 全部为 type-only import，测试期仅 `dsh-client-ui-primitives` 经
+`vitest.config.ts` 的 alias 指向 `tests/stubs/` 测试替身，组件测试无需宿主包。
 Config 的 schemastery schema 使用 `@deepseek-ai/schemastery`（与 DSH 仓库同款，支持
 `z.infer`）；host bundle 内联 schemastery（与范本 yet-another-subagent 一致），
 profile 无需额外解析。

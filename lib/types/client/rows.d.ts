@@ -9,14 +9,16 @@
  * falls back to a plain single row so the call never disappears.
  *
  * The row surface mirrors the built-in generic ToolRow: a variant title/icon
- * plus the settled card (read/search/diff/terminal/web) or IN/OUT text.
+ * plus the settled card (read/search/diff/terminal/web) or IN/OUT text. The
+ * card primitives' localized label props are built here from the plugin's own
+ * dictionary (the primitives are cordis-free and require complete labels).
  *
  * Everything here is a pure function of the chat snapshot + the frozen call
  * slices (replay-deterministic); expand state is component-local view state.
  * @module
  */
 import { type ReactNode } from 'react';
-import type { ToolCallBlock } from '@deepseek-ai/dsh-client-runtime/client';
+import type { ToolCallBlock } from '@deepseek-ai/dsh-client-ui-chat/client';
 import type { ToolCallViewProps } from '@deepseek-ai/dsh-client-ui-tool/client';
 import type { PropsLocale } from '@deepseek-ai/dsh-client-ui-slots';
 import type { MergeToolCallsConfig } from '../types.ts';
@@ -36,6 +38,7 @@ export declare const RowCard: import("react").NamedExoticComponent<{
     toolName: string;
     block: ToolCallBlock;
     cwd: string | undefined;
+    home: string | undefined;
     openFile: (path: string) => void;
     inspect: (() => void) | undefined;
     t: MergedToolRowProps["t"];
@@ -55,6 +58,7 @@ export declare const ChildRow: import("react").NamedExoticComponent<{
     toolName: string;
     block: ToolCallBlock;
     cwd: string | undefined;
+    home: string | undefined;
     openFile: (path: string) => void;
     t: MergedToolRowProps["t"];
 }>;
@@ -70,4 +74,4 @@ export declare const ChildRow: import("react").NamedExoticComponent<{
  * and indents the children so their dots and paths land on the main row's
  * columns — no font/title constants to keep in sync.
  */
-export declare function MergedToolRow({ callId, toolName, block, cwd, openFile, inspect, t, cfg, useSession }: MergedToolRowProps): import("react").JSX.Element | null;
+export declare function MergedToolRow({ callId, toolName, block, cwd, home, openFile, inspect, t, cfg, useChat }: MergedToolRowProps): import("react").JSX.Element | null;

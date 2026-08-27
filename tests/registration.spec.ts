@@ -1,6 +1,6 @@
 /** Registration spec: the client apply shadows the shipped toolview keys at priority -1. */
 import { describe, expect, it } from 'vitest'
-import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
+import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import { apply } from '../src/client/index.ts'
 import { ALL_TOOL_NAMES } from '../src/client/tool-names.ts'
 
@@ -61,10 +61,10 @@ describe('client apply', () => {
     expect(registrations.map(entry => entry.key)).toEqual([...ALL_TOOL_NAMES])
   })
 
-  it('installs the locale dictionaries and the stylesheet effect', () => {
+  it('installs the locale dictionaries, the stylesheet, and the better-locale override effects', () => {
     const { ctx, effects } = stubCtx()
     apply(ctx as unknown as ClientContext, {})
-    expect(effects.length).toBe(2)
+    expect(effects.length).toBe(3)
   })
 
   it('applies defaults when no config arrives', () => {

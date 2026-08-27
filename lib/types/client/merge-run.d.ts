@@ -6,7 +6,7 @@
  * display is deterministic under replay: the web layer recomputes it per frame.
  * @module
  */
-import type { ChatNodeStore, ToolCallBlock } from '@deepseek-ai/dsh-client-runtime/client';
+import type { ChatNodeStore, ToolCallBlock } from '@deepseek-ai/dsh-client-ui-chat/client';
 import type { MergeGroupMode } from '../types.ts';
 /** The wire tool name of a call in either lifecycle form (mirrors ui-tool). */
 export declare function callNameOf(block: ToolCallBlock): string;
@@ -23,7 +23,10 @@ export interface ReadRun {
  * Compute the merged group this call belongs to.
  *
  * 1. Locates this call's node in the chat order; null when it is not a chat
- *    tool-call node (e.g. a read dispatched as a subcall).
+ *    tool-call node (e.g. a read dispatched as a subcall). The node key
+ *    format stays a ui-conversation internal, so the seat finds itself by
+ *    scanning the store for the tool-call node owning its call id instead of
+ *    recomputing the key.
  * 2. Walks backward/forward to the maximal consecutive run containing it. A
  *    call continues the run when it is a grouped tool AND same-tool-same-run:
  *    the identical wire name, or a sibling of the same known variant family

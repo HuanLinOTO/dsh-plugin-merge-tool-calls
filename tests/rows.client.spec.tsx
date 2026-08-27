@@ -3,7 +3,7 @@
 import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, describe, expect, it } from 'vitest'
-import type { ConversationSnapshot, ToolCallBlock } from '@deepseek-ai/dsh-client-runtime/client'
+import type { ChatNodeStore, ChatSnapshot, ToolCallBlock } from '@deepseek-ai/dsh-client-ui-chat/client'
 import { MergedToolRow, type MergedToolRowProps } from '../src/client/rows.tsx'
 import type { MergeToolCallsConfig } from '../src/types.ts'
 
@@ -24,15 +24,17 @@ const T = ((key: string, params?: Record<string, unknown>) => {
 }) as MergedToolRowProps['t']
 
 function runningCall(callId: string, name: string, argsRaw = '{}'): ToolCallBlock {
-  return { callId, name, argsRaw, turn: 1, step: 1, time: 0, callView: null, subCalls: [] }
+  return { callId, name, argsRaw, turn: 1, step: 1, time: 0, subCalls: [] }
 }
 
 function settledRead(callId: string, path: string): ToolCallBlock {
   return {
     kind: 'tool-result', seq: 1, time: 0, callId,
     call: { name: 'read', argsRaw: JSON.stringify({ file_path: path }) },
-    callTime: 0, content: [], isError: false, callView: null,
-    resultView: { card: 'read', path, offset: 1, lines: [{ number: 1, text: 'hello' }], totalLines: 1 },
+    callTime: 0,
+    content: [{ type: 'text', text: `<path>${path}</path>\n<type>file</type>\n<content>\nhello\n</content>` }],
+    isError: false,
+    meta: { path, offset: 1, lines: [{ number: 1, text: 'hello' }], totalLines: 1 },
     subCalls: [],
   }
 }
@@ -41,14 +43,14 @@ function settledWrite(callId: string, path: string): ToolCallBlock {
   return {
     kind: 'tool-result', seq: 1, time: 0, callId,
     call: { name: 'write', argsRaw: JSON.stringify({ file_path: path }) },
-    callTime: 0, content: [], isError: false, callView: null, resultView: null,
+    callTime: 0, content: [], isError: false,
     subCalls: [],
   }
 }
 
-const NODE_KEY = (id: string) => `9:tool-call${id}`
+const NODE_KEY = (id: string) => `k:${id}`
 
-function snapshotOf(ids: string[], byId: Record<string, { callId: string; block: ToolCallBlock }>): ConversationSnapshot {
+function snapshotOf(ids: string[], byId: Record<string, { callId: string; block: ToolCallBlock }>): ChatSnapshot {
   const order = ids.map(NODE_KEY)
   const nodes = new Map<string, unknown>()
   for (const [key, entry] of Object.entries(byId)) {
@@ -62,18 +64,18 @@ function snapshotOf(ids: string[], byId: Record<string, { callId: string; block:
       visibility: 'visible', data: { root: entry.block },
     })
   }
+  const store: ChatNodeStore = { get: nodeKey => nodes.get(nodeKey) as never, values: () => [...nodes.values()] as never }
   return {
-    chat: {
-      order,
-      nodes: { get: nodeKey => nodes.get(nodeKey) as never, values: () => [...nodes.values()] as never },
-      locations: undefined as never,
-      timeline: { turnOrder: [], turns: new Map() },
-      legacy: undefined as never,
-    },
-  } as ConversationSnapshot
+    order,
+    nodes: store,
+    locations: undefined as never,
+    navigation: undefined as never,
+    timeline: { turnOrder: [], turns: new Map() },
+    legacy: undefined as never,
+  } as ChatSnapshot
 }
 
-function render(partial: Partial<MergedToolRowProps> & { callId: string; useSession: MergedToolRowProps['useSession'] }) {
+function render(partial: Partial<MergedToolRowProps> & { callId: string; useChat: MergedToolRowProps['useChat'] }) {
   const container = document.createElement('div')
   document.body.appendChild(container)
   const root = createRoot(container)
@@ -108,8 +110,8 @@ describe('MergedToolRow', () => {
       b: { callId: 'b', block: settledRead('b', 'bar.ts') },
       c: { callId: 'c', block: settledRead('c', 'baz.ts') },
     })
-    const useSession = ((selector: (s: ConversationSnapshot) => unknown) => selector(snapshot)) as MergedToolRowProps['useSession']
-    const { container, root } = render({ callId: 'a', useSession })
+    const useChat = ((selector: (s: ChatSnapshot) => unknown) => selector(snapshot)) as MergedToolRowProps['useChat']
+    const { container, root } = render({ callId: 'a', useChat })
     expect(container.querySelector('[data-testid="disclosure"]')).not.toBeNull()
     // Main row shows the variant title and the merged-count summary.
     const titleRow = container.querySelector('.mtc-title-row')
@@ -133,8 +135,8 @@ describe('MergedToolRow', () => {
       a: { callId: 'a', block: settledRead('a', 'foo.ts') },
       b: { callId: 'b', block: settledRead('b', 'bar.ts') },
     })
-    const useSession = ((selector: (s: ConversationSnapshot) => unknown) => selector(snapshot)) as MergedToolRowProps['useSession']
-    const { container, root } = render({ callId: 'b', useSession })
+    const useChat = ((selector: (s: ChatSnapshot) => unknown) => selector(snapshot)) as MergedToolRowProps['useChat']
+    const { container, root } = render({ callId: 'b', useChat })
     expect(container.children.length).toBe(0)
     unmount(root)
   })
@@ -145,8 +147,8 @@ describe('MergedToolRow', () => {
       b: { callId: 'b', block: settledRead('b', 'bar.ts') },
       c: { callId: 'c', block: settledRead('c', 'baz.ts') },
     })
-    const useSession = ((selector: (s: ConversationSnapshot) => unknown) => selector(snapshot)) as MergedToolRowProps['useSession']
-    const { container, root } = render({ callId: 'a', useSession })
+    const useChat = ((selector: (s: ChatSnapshot) => unknown) => selector(snapshot)) as MergedToolRowProps['useChat']
+    const { container, root } = render({ callId: 'a', useChat })
     // The animated children-collapse wrapper exists and is closed by default.
     const collapse = container.querySelector('.mtc-children-collapse')
     expect(collapse).not.toBeNull()
@@ -168,8 +170,8 @@ describe('MergedToolRow', () => {
       a: { callId: 'a', block: settledRead('a', 'foo.ts') },
       b: { callId: 'b', block: settledRead('b', 'bar.ts') },
     })
-    const useSession = ((selector: (s: ConversationSnapshot) => unknown) => selector(snapshot)) as MergedToolRowProps['useSession']
-    const { container, root } = render({ callId: 'a', useSession })
+    const useChat = ((selector: (s: ChatSnapshot) => unknown) => selector(snapshot)) as MergedToolRowProps['useChat']
+    const { container, root } = render({ callId: 'a', useChat })
     expect(container.querySelectorAll('[data-testid="readblock"]').length).toBe(0) // collapsed
     // The first child row is the first call (foo.ts) — its inline content card
     // opens on click, independent of the main row's children-collapse.
@@ -186,11 +188,11 @@ describe('MergedToolRow', () => {
       a: { callId: 'a', block: settledRead('a', 'foo.ts') },
       b: { callId: 'b', block: settledRead('b', 'bar.ts') },
     })
-    const useSession = ((selector: (s: ConversationSnapshot) => unknown) => selector(snapshot)) as MergedToolRowProps['useSession']
+    const useChat = ((selector: (s: ChatSnapshot) => unknown) => selector(snapshot)) as MergedToolRowProps['useChat']
     const opened: string[] = []
     const { container, root } = render({
       callId: 'a',
-      useSession,
+      useChat,
       openFile: (path: string) => { opened.push(path) },
     })
     // The first child row is the first call (foo.ts) — its path is the open-file link.
@@ -205,8 +207,8 @@ describe('MergedToolRow', () => {
 
   it('falls back to a plain single row when the call is not a chat tool-call node', () => {
     const snapshot = snapshotOf([], {})
-    const useSession = ((selector: (s: ConversationSnapshot) => unknown) => selector(snapshot)) as MergedToolRowProps['useSession']
-    const { container, root } = render({ callId: 'subcall', useSession })
+    const useChat = ((selector: (s: ChatSnapshot) => unknown) => selector(snapshot)) as MergedToolRowProps['useChat']
+    const { container, root } = render({ callId: 'subcall', useChat })
     expect(container.querySelector('[data-testid="disclosure"]')).not.toBeNull()
     expect(container.querySelectorAll('.mtc-child-row').length).toBe(0)
     unmount(root)
@@ -217,8 +219,8 @@ describe('MergedToolRow', () => {
       a: { callId: 'a', block: runningCall('a', 'bash') },
       b: { callId: 'b', block: runningCall('b', 'bash') },
     })
-    const useSession = ((selector: (s: ConversationSnapshot) => unknown) => selector(snapshot)) as MergedToolRowProps['useSession']
-    const { container, root } = render({ callId: 'a', toolName: 'bash', cfg: { ...CFG, tools: [] }, useSession })
+    const useChat = ((selector: (s: ChatSnapshot) => unknown) => selector(snapshot)) as MergedToolRowProps['useChat']
+    const { container, root } = render({ callId: 'a', toolName: 'bash', cfg: { ...CFG, tools: [] }, useChat })
     expect(container.textContent).toContain('Bash')
     // A running bash still carries its args as the IN body, so the row expands.
     const row = container.querySelector('.mtc-child-row') as HTMLDivElement
@@ -232,8 +234,8 @@ describe('MergedToolRow', () => {
       a: { callId: 'a', block: { ...runningCall('a', 'read'), argsRaw: JSON.stringify({ file_path: 'a.ts' }) } },
       b: { callId: 'b', block: { ...runningCall('b', 'read'), argsRaw: JSON.stringify({ file_path: 'b.ts' }) } },
     })
-    const useSession = ((selector: (s: ConversationSnapshot) => unknown) => selector(snapshot)) as MergedToolRowProps['useSession']
-    const { container, root } = render({ callId: 'a', cfg: { ...CFG, tools: [] }, useSession })
+    const useChat = ((selector: (s: ChatSnapshot) => unknown) => selector(snapshot)) as MergedToolRowProps['useChat']
+    const { container, root } = render({ callId: 'a', cfg: { ...CFG, tools: [] }, useChat })
     const row = container.querySelector('.mtc-child-row') as HTMLDivElement
     expect(row.dataset.static).toBe('true')
     expect(row.getAttribute('role')).toBeNull()
@@ -247,13 +249,13 @@ describe('MergedToolRow', () => {
       a: { callId: 'a', block: settledWrite('a', 'out.ts') },
       b: { callId: 'b', block: settledWrite('b', 'out2.ts') },
     })
-    const useSession = ((selector: (s: ConversationSnapshot) => unknown) => selector(snapshot)) as MergedToolRowProps['useSession']
+    const useChat = ((selector: (s: ChatSnapshot) => unknown) => selector(snapshot)) as MergedToolRowProps['useChat']
     const opened: string[] = []
     const { container, root } = render({
       callId: 'a',
       toolName: 'write',
       cfg: { ...CFG, tools: [] },
-      useSession,
+      useChat,
       openFile: (path: string) => { opened.push(path) },
     })
     expect(container.textContent).toContain('Write')

@@ -6,12 +6,11 @@
  * display is deterministic under replay: the web layer recomputes it per frame.
  * @module
  */
-import type { ChatConversationViewNode, ChatNodeStore, ToolCallBlock } from '@deepseek-ai/dsh-client-runtime/client'
-import { conversationContextKey } from '@deepseek-ai/dsh-client-runtime/client'
+import type { ChatConversationViewNode, ChatNodeStore, ToolCallBlock } from '@deepseek-ai/dsh-client-ui-chat/client'
 import type { MergeGroupMode } from '../types.ts'
 import { classifyTool } from './tool-names.ts'
 
-/** Tool-call node kind registered by ui-conversation's built-in tool definition. */
+/** Tool-call node kind registered by ui-chat's built-in tool definition. */
 const TOOL_CALL_KIND = 'tool-call'
 
 /** Extract a root call block from any chat node, when it is a tool-call node. */
@@ -49,7 +48,10 @@ export interface ReadRun {
  * Compute the merged group this call belongs to.
  *
  * 1. Locates this call's node in the chat order; null when it is not a chat
- *    tool-call node (e.g. a read dispatched as a subcall).
+ *    tool-call node (e.g. a read dispatched as a subcall). The node key
+ *    format stays a ui-conversation internal, so the seat finds itself by
+ *    scanning the store for the tool-call node owning its call id instead of
+ *    recomputing the key.
  * 2. Walks backward/forward to the maximal consecutive run containing it. A
  *    call continues the run when it is a grouped tool AND same-tool-same-run:
  *    the identical wire name, or a sibling of the same known variant family
@@ -77,8 +79,7 @@ export function readRun(
   groupBy: MergeGroupMode,
   maxGroupSize: number,
 ): ReadRun | null {
-  const myKey = conversationContextKey(TOOL_CALL_KIND, myCallId)
-  const myIndex = order.indexOf(myKey)
+  const myIndex = myIndexOf(order, nodes, myCallId)
   if (myIndex < 0) return null
   const myRoot = rootAtNode(order, nodes, myIndex)
   if (myRoot === null) return null
@@ -115,6 +116,19 @@ export function readRun(
     if (root !== null) blocks.push(root)
   }
   return { isFirst: myIndex === groupStart, blocks }
+}
+
+/** Index in the chat order of the tool-call node owning `callId`; -1 when absent. */
+function myIndexOf(order: readonly string[], nodes: ChatNodeStore, callId: string): number {
+  for (let index = 0; index < order.length; index++) {
+    const key = order[index]
+    if (key === undefined) continue
+    const node = nodes.get(key)
+    if (node?.kind !== TOOL_CALL_KIND) continue
+    const root = toolRootOf(node)
+    if (root?.callId === callId) return index
+  }
+  return -1
 }
 
 function rootAtNode(order: readonly string[], nodes: ChatNodeStore, index: number): ToolCallBlock | null {

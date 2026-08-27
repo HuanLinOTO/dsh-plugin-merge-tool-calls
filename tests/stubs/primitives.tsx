@@ -35,23 +35,23 @@ export function DisclosureRow({
   )
 }
 
-export function ReadBlock({ label }: { label?: string; lines?: unknown[]; totalLines?: number; lang?: string; maxLines?: number }) {
+export function ReadBlock({ label }: { label?: string; lines?: unknown[]; totalLines?: number; lang?: string; maxLines?: number; labels?: unknown }) {
   return <div data-testid="readblock">{label}</div>
 }
 
-export function SearchBlock({ kind }: { kind?: string; files?: unknown[]; paths?: string[]; truncated?: boolean; total?: number; maxLines?: number }) {
+export function SearchBlock({ kind }: { kind?: string; files?: unknown[]; paths?: string[]; truncated?: boolean; total?: number; maxLines?: number; labels?: unknown }) {
   return <div data-testid="searchblock">{kind}</div>
 }
 
-export function DiffBlock({ diffs }: { diffs?: unknown[]; maxLines?: number }) {
+export function DiffBlock({ diffs }: { diffs?: unknown[]; maxLines?: number; labels?: unknown }) {
   return <div data-testid="diffblock">{Array.isArray(diffs) ? diffs.length : 0} hunks</div>
 }
 
-export function TerminalBlock({ command }: { command?: string; cwd?: string; output?: string; exitCode?: number; signal?: string; running?: boolean; maxLines?: number; labels?: unknown }) {
+export function TerminalBlock({ command }: { command?: string; cwd?: string; home?: string; output?: string; exitCode?: number; signal?: string; running?: boolean; maxLines?: number; labels?: unknown }) {
   return <div data-testid="terminalblock">{command}</div>
 }
 
-export function WebBlock({ kind }: { kind?: string; url?: string; answer?: string; sources?: unknown[]; statusCode?: number; truncated?: boolean }) {
+export function WebBlock({ kind }: { kind?: string; url?: string; answer?: string; sources?: unknown[]; statusCode?: number; truncated?: boolean; labels?: unknown }) {
   return <div data-testid="webblock">{kind}</div>
 }
 

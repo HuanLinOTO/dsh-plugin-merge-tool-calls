@@ -11,8 +11,15 @@
  * @module @dsh-external/dsh-plugin-merge-tool-calls/client
  */
 
-import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
+import type { Context as ClientContext } from '@deepseek-ai/cordis'
+// Type-only: pulls the locale plugin's Context merge (ctx.locale).
 import type {} from '@deepseek-ai/dsh-client-locale/client'
+// Type-only: pulls the ui-renderer's Context merge (ctx.slots, the SlotRegistry
+// the apply body registers through).
+import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
+// Type-only: pulls the `tool.call.toolview` SlotMap entry so this plugin's
+// `slots.inject` matches the slot declaration. Cross-plugin collaboration
+// goes through the service, never a value import (client bundle purity gate).
 import type {} from '@deepseek-ai/dsh-client-ui-tool/client'
 import type {} from '@deepseek-ai/dsh-client-ui-slots'
 import { DEFAULT_MERGE_CONFIG, type MergeToolCallsConfig } from '../types.ts'
@@ -32,9 +39,11 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 /** Required services: the slot registry (toolview shadowing) and locale. */
 export const inject = ['slots', 'locale']
 
-/** Structural view of better-locale's override store (optional; no runtime dep). */
+/** Structural view of better-locale's override store (optional; no runtime dep).
+ *  Per-language dictionaries are partial: missing keys fall through to the
+ *  plugin's own registered zh/en dictionaries. */
 interface BetterLocaleOverrideStore {
-  register(ns: string, dicts: Record<string, Record<string, string>>): () => void
+  register(ns: string, dicts: Record<string, Partial<Record<string, string>>>): () => void
 }
 
 /**

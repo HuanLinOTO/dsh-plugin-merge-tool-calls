@@ -9,7 +9,9 @@
  * falls back to a plain single row so the call never disappears.
  *
  * The row surface mirrors the built-in generic ToolRow: a variant title/icon
- * plus the settled card (read/search/diff/terminal/web) or IN/OUT text.
+ * plus the settled card (read/search/diff/terminal/web) or IN/OUT text. The
+ * card primitives' localized label props are built here from the plugin's own
+ * dictionary (the primitives are cordis-free and require complete labels).
  *
  * Everything here is a pure function of the chat snapshot + the frozen call
  * slices (replay-deterministic); expand state is component-local view state.
@@ -19,9 +21,10 @@ import { memo, useLayoutEffect, useRef, useState, type CSSProperties, type Keybo
 import {
   DiffBlock, DisclosureRow, IconApiOutline14, IconBrowseOutline16, IconCodeOutline16,
   IconEditOutline16, IconSearchOutline16, IconSparkle16, ReadBlock, SearchBlock, StateDot,
-  TerminalBlock, WebBlock, type TerminalBlockLabels,
+  TerminalBlock, WebBlock, type DiffBlockLabels, type ReadBlockLabels, type SearchBlockLabels,
+  type TerminalBlockLabels, type WebBlockLabels,
 } from '@deepseek-ai/dsh-client-ui-primitives'
-import type { ToolCallBlock } from '@deepseek-ai/dsh-client-runtime/client'
+import type { ToolCallBlock } from '@deepseek-ai/dsh-client-ui-chat/client'
 import type { ToolCallViewProps } from '@deepseek-ai/dsh-client-ui-tool/client'
 import type { PropsLocale } from '@deepseek-ai/dsh-client-ui-slots'
 import type { MergeToolCallsConfig } from '../types.ts'
@@ -102,21 +105,82 @@ function terminalLabels(t: MergedToolRowProps['t']): TerminalBlockLabels {
   }
 }
 
+/** ReadBlock display copy from the plugin's own dictionary. */
+function readLabels(t: MergedToolRowProps['t']): ReadBlockLabels {
+  return {
+    window: (shown, total) => t('read.window', { shown, total }),
+    copy: t('copy'),
+    copied: t('copied'),
+    collapseAria: t('read.collapseAria'),
+    expandAria: count => t('read.expandAria', { count }),
+    collapse: t('collapse'),
+    expand: count => t('read.expandRest', { count }),
+  }
+}
+
+/** SearchBlock display copy from the plugin's own dictionary. */
+function searchLabels(t: MergedToolRowProps['t']): SearchBlockLabels {
+  return {
+    pathsSummary: (shown, total, truncated) => t(
+      truncated ? 'search.paths.truncated' : 'search.paths',
+      { shown, total },
+    ),
+    matchesSummary: (shown, total, files, truncated) => t(
+      truncated ? 'search.matches.truncated' : 'search.matches',
+      { shown, total, files },
+    ),
+    copy: t('copy'),
+    copied: t('copied'),
+    noResults: t('search.noResults'),
+    collapseAria: t('search.collapseAria'),
+    expandAria: count => t('search.expandAria', { count }),
+    collapse: t('collapse'),
+    expand: count => t('search.expandRest', { count }),
+  }
+}
+
+/** DiffBlock display copy from the plugin's own dictionary. */
+function diffLabels(t: MergedToolRowProps['t']): DiffBlockLabels {
+  return {
+    copy: t('copy'),
+    copied: t('copied'),
+    collapseAria: t('diff.collapseAria'),
+    expandAria: count => t('diff.expandAria', { count }),
+    collapse: t('collapse'),
+    expand: count => t('diff.expandRest', { count }),
+    files: count => t('diff.files', { count }),
+  }
+}
+
+/** WebBlock display copy from the plugin's own dictionary. */
+function webLabels(t: MergedToolRowProps['t']): WebBlockLabels {
+  return {
+    noResults: t('web.noResults'),
+    sourcesTruncated: t('web.sourcesTruncated'),
+    http: t('web.http'),
+    contentTruncated: t('web.contentTruncated'),
+    markdown: {
+      code: { copyLabel: t('copy'), copiedLabel: t('copied') },
+      footnotes: t('markdown.footnotes'),
+    },
+  }
+}
+
 /** One call's expanded-body card, mirroring the built-in ToolRow body. */
-function CardBody({ model, t }: { model: CallRowModel; t: MergedToolRowProps['t'] }) {
+function CardBody({ model, home, t }: { model: CallRowModel; home: string | undefined; t: MergedToolRowProps['t'] }) {
   if (model.terminal !== null) {
-    return <TerminalBlock {...model.terminal.card} maxLines={Infinity} labels={terminalLabels(t)} />
+    return <TerminalBlock {...model.terminal.card} home={home} maxLines={Infinity} labels={terminalLabels(t)} />
   }
   if (model.diff !== null) {
-    return <DiffBlock {...model.diff.card} maxLines={CHAT_DIFF_MAX_LINES} />
+    return <DiffBlock {...model.diff.card} labels={diffLabels(t)} maxLines={CHAT_DIFF_MAX_LINES} />
   }
   if (model.read !== null) {
-    return <ReadBlock {...model.read} maxLines={CHAT_READ_MAX_LINES} />
+    return <ReadBlock {...model.read} labels={readLabels(t)} maxLines={CHAT_READ_MAX_LINES} />
   }
   if (model.search !== null) {
     return (
       <>
-        <SearchBlock {...model.search.card} maxLines={CHAT_SEARCH_MAX_LINES} />
+        <SearchBlock {...model.search.card} labels={searchLabels(t)} maxLines={CHAT_SEARCH_MAX_LINES} />
         {model.search.recovery !== undefined && (
           <div className="mtc-recovery">{model.search.recovery}</div>
         )}
@@ -124,7 +188,7 @@ function CardBody({ model, t }: { model: CallRowModel; t: MergedToolRowProps['t'
     )
   }
   if (model.web !== null) {
-    return <WebBlock {...model.web} />
+    return <WebBlock {...model.web} labels={webLabels(t)} />
   }
   const hasBody = model.body !== null
   const hasOutput = model.output !== null
@@ -157,11 +221,12 @@ function CardBody({ model, t }: { model: CallRowModel; t: MergedToolRowProps['t'
  * row, never on the main row.
  */
 export const RowCard = memo(function RowCard({
-  toolName, block, cwd, openFile, inspect, t, mergedCount, children,
+  toolName, block, cwd, home, openFile, inspect, t, mergedCount, children,
 }: {
   toolName: string
   block: ToolCallBlock
   cwd: string | undefined
+  home: string | undefined
   openFile: (path: string) => void
   inspect: (() => void) | undefined
   t: MergedToolRowProps['t']
@@ -170,7 +235,7 @@ export const RowCard = memo(function RowCard({
   /** Child rows for the merged run (all calls, including the first). */
   children?: ReactNode
 }) {
-  const model = callRowModel(toolName, block, cwd)
+  const model = callRowModel(toolName, block, cwd, home)
   const [expanded, setExpanded] = useState(false)
   const hasChildren = mergedCount > 0
   const expandable = model.expandable || hasChildren
@@ -221,7 +286,7 @@ export const RowCard = memo(function RowCard({
             rows block is a sibling below, animated via its own collapse grid. */}
         {!hasChildren && (
           <div className="mtc-card-body">
-            <CardBody model={model} t={t} />
+            <CardBody model={model} home={home} t={t} />
             {inspect !== undefined && (
               <button type="button" className="mtc-inspect" onClick={inspect}>Inspect</button>
             )}
@@ -254,15 +319,16 @@ export const RowCard = memo(function RowCard({
  * exactly like the main row's summary link.
  */
 export const ChildRow = memo(function ChildRow({
-  toolName, block, cwd, openFile, t,
+  toolName, block, cwd, home, openFile, t,
 }: {
   toolName: string
   block: ToolCallBlock
   cwd: string | undefined
+  home: string | undefined
   openFile: (path: string) => void
   t: MergedToolRowProps['t']
 }) {
-  const model = callRowModel(toolName, block, cwd)
+  const model = callRowModel(toolName, block, cwd, home)
   const [open, setOpen] = useState(false)
   const stateLabel = stateStatus(model.state, t)
   const expandable = model.expandable
@@ -301,7 +367,7 @@ export const ChildRow = memo(function ChildRow({
       </div>
       {expandable && open && (
         <div className="mtc-child-body">
-          <CardBody model={model} t={t} />
+          <CardBody model={model} home={home} t={t} />
         </div>
       )}
     </div>
@@ -320,10 +386,10 @@ export const ChildRow = memo(function ChildRow({
  * and indents the children so their dots and paths land on the main row's
  * columns — no font/title constants to keep in sync.
  */
-export function MergedToolRow({ callId, toolName, block, cwd, openFile, inspect, t, cfg, useSession }: MergedToolRowProps) {
-  const run = useSession(snapshot => readRun(
-    snapshot.chat.order,
-    snapshot.chat.nodes,
+export function MergedToolRow({ callId, toolName, block, cwd, home, openFile, inspect, t, cfg, useChat }: MergedToolRowProps) {
+  const run = useChat(snapshot => readRun(
+    snapshot.order,
+    snapshot.nodes,
     callId,
     cfg.tools,
     cfg.groupBy,
@@ -356,6 +422,7 @@ export function MergedToolRow({ callId, toolName, block, cwd, openFile, inspect,
         toolName={toolName}
         block={block}
         cwd={cwd}
+        home={home}
         openFile={openFile}
         inspect={inspect}
         t={t}
@@ -379,6 +446,7 @@ export function MergedToolRow({ callId, toolName, block, cwd, openFile, inspect,
         toolName={toolName}
         block={run.blocks[0] ?? block}
         cwd={cwd}
+        home={home}
         openFile={openFile}
         inspect={inspect}
         t={t}
@@ -388,7 +456,7 @@ export function MergedToolRow({ callId, toolName, block, cwd, openFile, inspect,
             main row's summary stays a count (`Read · 5 Files`) and every file
             path lands on its own child row. */}
         {hasChildren && run.blocks.map(child => (
-          <ChildRow key={child.callId} toolName={toolName} block={child} cwd={cwd} openFile={openFile} t={t} />
+          <ChildRow key={child.callId} toolName={toolName} block={child} cwd={cwd} home={home} openFile={openFile} t={t} />
         ))}
       </RowCard>
     </div>
