@@ -48,7 +48,7 @@
 pnpm install            # 安装 registry 依赖（react/vitest/tsdown/schemastery…）
 pnpm run typecheck      # tsc --noEmit；@deepseek-ai/* 类型来自本机 DSH checkout 的 node_modules junction
 pnpm test               # vitest：纯逻辑 + jsdom 组件 + 注册形态
-pnpm run build          # tsdown + tsc → lib/index.js、lib/invariant.js、lib/client.js、lib/types/
+pnpm run build          # tsdown + tsc → lib/index.js、lib/client.js、lib/types/
 ```
 
 注意：alpha 版 DSH 未发 npm，`@deepseek-ai/*` peer 类型在开发期经 `node_modules/@deepseek-ai/*`
@@ -93,3 +93,5 @@ dsh plugin --profile web add "@huanlin/dsh-plugin-merge-tool-calls"     # npm re
 - 非聊天节点场景（如被 dispatch 为子调用）回退为普通单行，绝不空白。
 - 带自定义行卡片的工具（`skill`、`cordis_define`、`cordis_run`/`cordis_stop`/`cordis_undefine`，以及摘要格式特殊的 `todo_write`/`ask_user_question`）**不**默认接管，保持内置行；如需合并，用 `tools` 白名单显式加入（合并行按通用行面渲染）。
 - 需要浏览器支持 `:has()`（Chrome 105+ / Safari 15.4+ / Firefox 121+）；不支持时仅退化为空行间距。
+
+> v0.3.1（适配 DSH v0.1.2-rc.1）：按新版 invariant 规则不再发布空样板 `./invariant` 导出（本插件无独立可分歧观察，故不发布 invariant，见 AGENTS.md 新规则）。

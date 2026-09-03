@@ -1,4 +1,4 @@
-/** Build the host, invariant, and DSH module-loader client artifacts. */
+/** Build the host and DSH module-loader client artifacts. */
 import { defineConfig, type UserConfig } from 'tsdown'
 
 const ID = '@huanlin/dsh-plugin-merge-tool-calls'
@@ -26,7 +26,7 @@ const CLIENT_EXTERNALS = [
 
 const host: UserConfig = {
   name: ID,
-  entry: { index: 'src/index.ts', invariant: 'src/invariant.ts' },
+  entry: { index: 'src/index.ts' },
   outDir: 'lib',
   format: ['esm'],
   platform: 'node',
