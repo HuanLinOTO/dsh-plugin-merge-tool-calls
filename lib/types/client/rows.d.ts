@@ -19,11 +19,18 @@
  */
 import { type ReactNode } from 'react';
 import type { ToolCallBlock } from '@deepseek-ai/dsh-client-ui-chat/client';
-import type { ToolCallViewProps } from '@deepseek-ai/dsh-client-ui-tool/client';
+import type { StartedToolCallViewProps, ToolCallViewProps } from '@deepseek-ai/dsh-client-ui-tool/client';
 import type { PropsLocale } from '@deepseek-ai/dsh-client-ui-slots';
 import type { MergeToolCallsConfig } from '../types.ts';
 /** Locale seat and inject face of the merged row registration. */
 export type MergedToolRowProps = ToolCallViewProps & PropsLocale<'merge-tool-calls'> & {
+    readonly cfg: MergeToolCallsConfig;
+};
+/**
+ * Props of the dispatched arm. The preparing stage carries no dispatched
+ * arguments, so only `start`/`result` reach the argument-reading row.
+ */
+export type DispatchedMergedRowProps = StartedToolCallViewProps & PropsLocale<'merge-tool-calls'> & {
     readonly cfg: MergeToolCallsConfig;
 };
 /**
@@ -63,7 +70,7 @@ export declare const ChildRow: import("react").NamedExoticComponent<{
     t: MergedToolRowProps["t"];
 }>;
 /**
- * The shadowed toolview: renders the merged run card for the run's first call,
+ * The dispatched arm: renders the merged run card for the run's first call,
  * nothing for continuation calls, and a plain single row when this call is not
  * a chat tool-call node.
  *
@@ -74,4 +81,10 @@ export declare const ChildRow: import("react").NamedExoticComponent<{
  * and indents the children so their dots and paths land on the main row's
  * columns — no font/title constants to keep in sync.
  */
-export declare function MergedToolRow({ callId, toolName, block, cwd, home, openFile, inspect, t, cfg, useChat }: MergedToolRowProps): import("react").JSX.Element | null;
+export declare function DispatchedMergedRow({ callId, toolName, block, cwd, home, openFile, inspect, t, cfg, useChat }: DispatchedMergedRowProps): import("react").JSX.Element | null;
+/**
+ * The shadowed `tool.call.toolview` dispatch. The owner props are a three-phase
+ * union: a `preparing` call (no dispatched arguments) renders the lightweight
+ * arm, while `start`/`result` delegate to the dispatched arm.
+ */
+export declare function MergedToolRow(props: MergedToolRowProps): import("react").JSX.Element;

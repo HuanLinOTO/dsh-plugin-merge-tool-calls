@@ -6,8 +6,8 @@ export interface MergeToolCallsConfig {
     /**
      * Wire tool names whose consecutive calls merge. Empty = every built-in
      * generic-family tool (read/grep/glob/edit/write/bash/pwsh/web_search/
-     * web_fetch/run_code/cordis_package_inspect/cordis_runtime_inspect); a
-     * non-empty list is an explicit whitelist (any wire name works).
+     * web_fetch/run_code); a non-empty list is an explicit whitelist (any wire
+     * name works).
      */
     readonly tools: readonly string[];
     /** `adjacent`: any consecutive run in the chat flow; `step`: only within one agent step. */

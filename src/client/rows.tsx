@@ -19,17 +19,18 @@
  */
 import { memo, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react'
 import {
-  DiffBlock, DisclosureRow, IconApiOutline14, IconBrowseOutline16, IconCodeOutline16,
-  IconEditOutline16, IconSearchOutline16, IconSparkle16, ReadBlock, SearchBlock, StateDot,
+  DiffBlock, DisclosureRow, IconApiOutlineRegular, IconBrowseOutlineRegular, IconCodeOutlineRegular,
+  IconEditOutlineRegular, IconSearchOutlineRegular, IconSparkleRegular, ReadBlock, SearchBlock, StateDot,
   TerminalBlock, WebBlock, type DiffBlockLabels, type ReadBlockLabels, type SearchBlockLabels,
   type TerminalBlockLabels, type WebBlockLabels,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { ToolCallBlock } from '@deepseek-ai/dsh-client-ui-chat/client'
-import type { ToolCallViewProps } from '@deepseek-ai/dsh-client-ui-tool/client'
+import type { StartedToolCallViewProps, ToolCallViewProps } from '@deepseek-ai/dsh-client-ui-tool/client'
 import type { PropsLocale } from '@deepseek-ai/dsh-client-ui-slots'
 import type { MergeToolCallsConfig } from '../types.ts'
 import { callRowModel, type CallRowModel, type RowState, type ToolVariant } from './card-model.ts'
 import { readRun } from './merge-run.ts'
+import { classifyTool, variantTitle } from './tool-names.ts'
 
 /** Chat rows show a capped card; the details panel stays the full-height surface. */
 const CHAT_READ_MAX_LINES = 8
@@ -41,15 +42,23 @@ export type MergedToolRowProps = ToolCallViewProps
   & PropsLocale<'merge-tool-calls'>
   & { readonly cfg: MergeToolCallsConfig }
 
+/**
+ * Props of the dispatched arm. The preparing stage carries no dispatched
+ * arguments, so only `start`/`result` reach the argument-reading row.
+ */
+export type DispatchedMergedRowProps = StartedToolCallViewProps
+  & PropsLocale<'merge-tool-calls'>
+  & { readonly cfg: MergeToolCallsConfig }
+
 /** Variant leading icons (figma table); all glyphs render at 14 inside the 16px leading box. */
 const VARIANT_ICONS: Record<ToolVariant, ReactNode> = {
-  search: <IconSearchOutline16 size={14} />,
-  read: <IconBrowseOutline16 size={14} />,
-  bash: <IconApiOutline14 size={14} />,
-  write: <IconEditOutline16 size={14} />,
-  edit: <IconEditOutline16 size={14} />,
-  code: <IconCodeOutline16 size={14} />,
-  others: <IconSparkle16 size={14} />,
+  search: <IconSearchOutlineRegular size={14} />,
+  read: <IconBrowseOutlineRegular size={14} />,
+  bash: <IconApiOutlineRegular size={14} />,
+  write: <IconEditOutlineRegular size={14} />,
+  edit: <IconEditOutlineRegular size={14} />,
+  code: <IconCodeOutlineRegular size={14} />,
+  others: <IconSparkleRegular size={14} />,
 }
 
 /**
@@ -87,11 +96,21 @@ function stateStatus(state: RowState, t: MergedToolRowProps['t']): string | null
   }
 }
 
+/** Shared code-card toolbar copy from the plugin's own dictionary. */
+function codeToolbarLabels(t: MergedToolRowProps['t']): { codeLabel: string; wrapLabel: string; unwrapLabel: string } {
+  return {
+    codeLabel: t('codeBlock.title'),
+    wrapLabel: t('codeBlock.wrap'),
+    unwrapLabel: t('codeBlock.unwrap'),
+  }
+}
+
 /** TerminalBlock display copy from the plugin's own dictionary. */
 function terminalLabels(t: MergedToolRowProps['t']): TerminalBlockLabels {
   return {
     signal: signal => t('terminal.signal', { signal }),
     exitCode: code => t('terminal.exitCode', { code }),
+    noExitCode: t('terminal.noExitCode'),
     running: t('terminal.running'),
     failed: t('terminal.failed'),
     done: t('terminal.done'),
@@ -108,6 +127,7 @@ function terminalLabels(t: MergedToolRowProps['t']): TerminalBlockLabels {
 /** ReadBlock display copy from the plugin's own dictionary. */
 function readLabels(t: MergedToolRowProps['t']): ReadBlockLabels {
   return {
+    ...codeToolbarLabels(t),
     window: (shown, total) => t('read.window', { shown, total }),
     copy: t('copy'),
     copied: t('copied'),
@@ -142,13 +162,13 @@ function searchLabels(t: MergedToolRowProps['t']): SearchBlockLabels {
 /** DiffBlock display copy from the plugin's own dictionary. */
 function diffLabels(t: MergedToolRowProps['t']): DiffBlockLabels {
   return {
+    ...codeToolbarLabels(t),
     copy: t('copy'),
     copied: t('copied'),
     collapseAria: t('diff.collapseAria'),
     expandAria: count => t('diff.expandAria', { count }),
     collapse: t('collapse'),
     expand: count => t('diff.expandRest', { count }),
-    files: count => t('diff.files', { count }),
   }
 }
 
@@ -374,8 +394,48 @@ export const ChildRow = memo(function ChildRow({
   )
 })
 
+/** First line of a raw argument prefix (display only). */
+function firstLine(text: string): string {
+  const nl = text.indexOf('\n')
+  return nl === -1 ? text : text.slice(0, nl)
+}
+
 /**
- * The shadowed toolview: renders the merged run card for the run's first call,
+ * The preparing arm: a lightweight, non-expandable row shown while the call's
+ * arguments are still streaming. `PreparingToolCall` carries no `argsRaw`, so
+ * the row renders only the variant title/icon plus the optional raw argument
+ * prefix from `useToolCallArgumentsPartial`.
+ */
+function PreparingMergedRow({ toolName, useToolCallArgumentsPartial, t }: MergedToolRowProps) {
+  const partial = useToolCallArgumentsPartial()
+  const variant = classifyTool(toolName)
+  const summary = firstLine(partial)
+  return (
+    <div className="mtc-row" data-state="preparing" data-variant={variant}>
+      <DisclosureRow
+        rowClassName="mtc-title-row"
+        titleClassName="mtc-title"
+        leadingClassName="mtc-leading"
+        chevronClassName="mtc-chevron"
+        icon={VARIANT_ICONS[variant]}
+        title={variantTitle(toolName)}
+        open={false}
+        expandable={false}
+        onToggle={() => {}}
+        collapsedContent={summary !== '' && (
+          <>
+            <span className="mtc-sep" aria-hidden />
+            <span className="mtc-summary">{summary}</span>
+          </>
+        )}
+      />
+      <span className="mtc-visually-hidden">{t('running')}</span>
+    </div>
+  )
+}
+
+/**
+ * The dispatched arm: renders the merged run card for the run's first call,
  * nothing for continuation calls, and a plain single row when this call is not
  * a chat tool-call node.
  *
@@ -386,7 +446,7 @@ export const ChildRow = memo(function ChildRow({
  * and indents the children so their dots and paths land on the main row's
  * columns — no font/title constants to keep in sync.
  */
-export function MergedToolRow({ callId, toolName, block, cwd, home, openFile, inspect, t, cfg, useChat }: MergedToolRowProps) {
+export function DispatchedMergedRow({ callId, toolName, block, cwd, home, openFile, inspect, t, cfg, useChat }: DispatchedMergedRowProps) {
   const run = useChat(snapshot => readRun(
     snapshot.order,
     snapshot.nodes,
@@ -461,4 +521,14 @@ export function MergedToolRow({ callId, toolName, block, cwd, home, openFile, in
       </RowCard>
     </div>
   )
+}
+
+/**
+ * The shadowed `tool.call.toolview` dispatch. The owner props are a three-phase
+ * union: a `preparing` call (no dispatched arguments) renders the lightweight
+ * arm, while `start`/`result` delegate to the dispatched arm.
+ */
+export function MergedToolRow(props: MergedToolRowProps) {
+  if (props.phase === 'preparing') return <PreparingMergedRow {...props} />
+  return <DispatchedMergedRow {...props} />
 }

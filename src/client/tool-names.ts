@@ -9,11 +9,17 @@
  * IN/OUT text — which the merged row reproduces faithfully.
  *
  * Deliberately excluded: tools with custom row cards this plugin does not
- * replicate (`skill`, `cordis_define`, and the live `cordis_run` /
- * `cordis_stop` / `cordis_undefine` rows), and `todo_write` /
- * `ask_user_question` whose summary formatting is tool-specific. They keep
- * their built-in rows unless the user names them in the `tools` config
- * explicitly.
+ * replicate (`skill`, `todo_write` / `ask_user_question` whose summary
+ * formatting is tool-specific, and the read-only Cordis inspection verbs
+ * `cordis_inspect_list` / `cordis_inspect_query` / `cordis_inspect_self`,
+ * which render through ui-tool's own details row). They keep their built-in
+ * rows unless the user names them in the `tools` config explicitly.
+ *
+ * The former dynamic Cordis verbs (`cordis_define`, `cordis_run`,
+ * `cordis_stop`, `cordis_undefine`, `cordis_inspect_self`) and their
+ * `cordis_package_inspect` / `cordis_runtime_inspect` inspection siblings no
+ * longer exist on the wire at 0.1.7-rc.1 (`tool-cordis` was narrowed to
+ * read-only inspection), so they are not listed here.
  * @module
  */
 
@@ -27,8 +33,6 @@ export const ALL_TOOL_NAMES: readonly string[] = [
   'web_search', 'web_fetch',
   // Code tool (generic IN/OUT with the program body).
   'run_code',
-  // Cordis inspection verbs (generic read-variant rows).
-  'cordis_package_inspect', 'cordis_runtime_inspect',
 ]
 
 /** Tool-row visual variant, mirroring ui-tool's ToolRowVariant. */
@@ -42,7 +46,8 @@ export const VARIANT_TITLES: Record<ToolVariant, string> = {
 
 /**
  * Known tool name -> row variant (mirrors ui-tool's classification table,
- * minus the run-control verbs: their rows are custom and not shadowed).
+ * minus the run-control verbs and the Cordis inspection verbs: their rows are
+ * custom and not shadowed).
  */
 const TOOL_VARIANTS: Record<string, ToolVariant> = {
   bash: 'bash',
@@ -55,14 +60,10 @@ const TOOL_VARIANTS: Record<string, ToolVariant> = {
   write: 'write',
   edit: 'edit',
   run_code: 'code',
-  cordis_package_inspect: 'read',
-  cordis_runtime_inspect: 'read',
 }
 
 /** Tool-owned titles refining a generic row variant (mirrors ui-tool). */
 export const TOOL_TITLES: Record<string, string> = {
-  cordis_package_inspect: 'Inspect',
-  cordis_runtime_inspect: 'Inspect',
   pwsh: 'Pwsh',
 }
 

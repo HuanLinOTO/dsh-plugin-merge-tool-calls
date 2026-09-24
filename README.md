@@ -4,7 +4,7 @@
 
 # dsh-plugin-merge-tool-calls
 
-把 WebUI 会话流中**连续相邻**的同工具调用合并为一个「主卡片 + 紧凑子行」的树状展示，减少连续读文件/搜索/编辑/执行命令时多条卡片对流的占据。默认覆盖所有内置通用行工具（`read`/`grep`/`glob`/`edit`/`write`/`bash`/`pwsh`/`web_search`/`web_fetch`/`run_code`/`cordis_package_inspect`/`cordis_runtime_inspect`），也可配置白名单。
+把 WebUI 会话流中**连续相邻**的同工具调用合并为一个「主卡片 + 紧凑子行」的树状展示，减少连续读文件/搜索/编辑/执行命令时多条卡片对流的占据。默认覆盖所有内置通用行工具（`read`/`grep`/`glob`/`edit`/`write`/`bash`/`pwsh`/`web_search`/`web_fetch`/`run_code`），也可配置白名单。
 
 ```
 合并前：                         合并后：
@@ -36,7 +36,7 @@
 
 | 字段 | 默认 | 说明 |
 |------|------|------|
-| `tools` | `[]`（全部） | 空数组 = 合并所有内置通用行工具（read/grep/glob/edit/write/bash/pwsh/web_search/web_fetch/run_code/cordis_package_inspect/cordis_runtime_inspect）；非空数组 = 显式白名单（任意 wire 名，如 `['read','todo_write']`） |
+| `tools` | `[]`（全部） | 空数组 = 合并所有内置通用行工具（read/grep/glob/edit/write/bash/pwsh/web_search/web_fetch/run_code）；非空数组 = 显式白名单（任意 wire 名，如 `['read','todo_write']`） |
 | `groupBy` | `adjacent` | `adjacent`：流中相邻即可合并；`step`：仅同 agent step |
 | `maxGroupSize` | `8` | 每组最多合并数，超出部分自动另起新组 |
 
@@ -91,7 +91,8 @@ dsh plugin --profile web add "@huanlin/dsh-plugin-merge-tool-calls"     # npm re
 - `read`/`write`/`edit` 家族的子行摘要是可点击文件链接（与内置行为一致，打开侧边栏预览）；grep/glob 的 `path` 参数是搜索目录而非文件，摘要保持纯文本，不会误开目录。单次调用（无合并）的主行摘要是文件链接。
 - 组被任何其他节点打断即断开；超过 `maxGroupSize` 的部分另起新组（不丢调用）。
 - 非聊天节点场景（如被 dispatch 为子调用）回退为普通单行，绝不空白。
-- 带自定义行卡片的工具（`skill`、`cordis_define`、`cordis_run`/`cordis_stop`/`cordis_undefine`，以及摘要格式特殊的 `todo_write`/`ask_user_question`）**不**默认接管，保持内置行；如需合并，用 `tools` 白名单显式加入（合并行按通用行面渲染）。
+- 带自定义行卡片的工具（`skill`、只读 Cordis 检查 `cordis_inspect_list`/`cordis_inspect_query`/`cordis_inspect_self` 的 details 行，以及摘要格式特殊的 `todo_write`/`ask_user_question`）**不**默认接管，保持内置行；如需合并，用 `tools` 白名单显式加入（合并行按通用行面渲染）。<br>注：dsh 0.1.7-rc.1 起 `tool-cordis` 收窄为只读，动态 `cordis_define`/`cordis_run`/`cordis_stop`/`cordis_undefine` 与 `cordis_package_inspect`/`cordis_runtime_inspect` 已不存在。
+- 准备阶段（`PreparingToolCall`，参数尚未流出）：渲染无参数轻量行（variant 标题/图标 + 可选原始参数前缀），不读取 `argsRaw`。
 - 需要浏览器支持 `:has()`（Chrome 105+ / Safari 15.4+ / Firefox 121+）；不支持时仅退化为空行间距。
 
 > v0.3.1（适配 DSH v0.1.2-rc.1）：按新版 invariant 规则不再发布空样板 `./invariant` 导出（本插件无独立可分歧观察，故不发布 invariant，见 AGENTS.md 新规则）。

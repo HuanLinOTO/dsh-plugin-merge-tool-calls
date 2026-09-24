@@ -59,26 +59,26 @@ export function StateDot({ state }: { state: string }) {
   return <span data-testid="statedot" data-state={state} />
 }
 
-export function IconBrowseOutline16() {
+export function IconBrowseOutlineRegular() {
   return <span data-testid="icon-browse" />
 }
 
-export function IconSearchOutline16() {
+export function IconSearchOutlineRegular() {
   return <span data-testid="icon-search" />
 }
 
-export function IconApiOutline14() {
+export function IconApiOutlineRegular() {
   return <span data-testid="icon-api" />
 }
 
-export function IconEditOutline16() {
+export function IconEditOutlineRegular() {
   return <span data-testid="icon-edit" />
 }
 
-export function IconCodeOutline16() {
+export function IconCodeOutlineRegular() {
   return <span data-testid="icon-code" />
 }
 
-export function IconSparkle16() {
+export function IconSparkleRegular() {
   return <span data-testid="icon-sparkle" />
 }

@@ -24,7 +24,11 @@ const T = ((key: string, params?: Record<string, unknown>) => {
 }) as MergedToolRowProps['t']
 
 function runningCall(callId: string, name: string, argsRaw = '{}'): ToolCallBlock {
-  return { callId, name, argsRaw, turn: 1, step: 1, time: 0, subCalls: [] }
+  return { phase: 'start', callId, name, argsRaw, turn: 1, step: 1, time: 0, subCalls: [] }
+}
+
+function preparingCall(callId: string, name: string): ToolCallBlock {
+  return { phase: 'preparing', callId, name, turn: 1, step: 1, time: 0, subCalls: [] }
 }
 
 function settledRead(callId: string, path: string): ToolCallBlock {
@@ -79,17 +83,23 @@ function render(partial: Partial<MergedToolRowProps> & { callId: string; useChat
   const container = document.createElement('div')
   document.body.appendChild(container)
   const root = createRoot(container)
+  const props = {
+    toolName: 'read',
+    phase: 'start',
+    block: runningCall(partial.callId, 'read'),
+    cwd: undefined,
+    home: undefined,
+    openFile: () => {},
+    loadImage: (async () => '') as never,
+    inspect: undefined,
+    t: T,
+    cfg: CFG,
+    useDisclosure: (() => [false, { open: () => {}, close: () => {}, toggle: () => {} }]) as never,
+    useToolCallArgumentsPartial: () => '',
+    ...partial,
+  } as MergedToolRowProps
   act(() => {
-    root.render(<MergedToolRow
-      toolName="read"
-      block={runningCall(partial.callId, 'read')}
-      cwd={undefined}
-      openFile={() => {}}
-      inspect={undefined}
-      t={T}
-      cfg={CFG}
-      {...partial}
-    />)
+    root.render(<MergedToolRow {...props} />)
   })
   return { container, root }
 }
@@ -138,6 +148,30 @@ describe('MergedToolRow', () => {
     const useChat = ((selector: (s: ChatSnapshot) => unknown) => selector(snapshot)) as MergedToolRowProps['useChat']
     const { container, root } = render({ callId: 'b', useChat })
     expect(container.children.length).toBe(0)
+    unmount(root)
+  })
+
+  it('renders a lightweight argument-free row for a preparing call', () => {
+    const snapshot = snapshotOf(['a'], { a: { callId: 'a', block: preparingCall('a', 'read') } })
+    const useChat = ((selector: (s: ChatSnapshot) => unknown) => selector(snapshot)) as MergedToolRowProps['useChat']
+    const { container, root } = render({
+      callId: 'a',
+      phase: 'preparing',
+      block: preparingCall('a', 'read'),
+      useChat,
+      // The optional raw argument prefix streams in while preparing.
+      useToolCallArgumentsPartial: () => '{"file_path":"foo',
+    })
+    const row = container.querySelector('.mtc-row')
+    expect(row).not.toBeNull()
+    expect(row!.getAttribute('data-state')).toBe('preparing')
+    // Variant title/icon without reading `argsRaw` (PreparingToolCall has none).
+    expect(container.textContent).toContain('Read')
+    // The raw argument prefix is shown while preparing.
+    expect(container.textContent).toContain('{"file_path":"foo')
+    // Preparing is never expandable and never merges into child rows here.
+    expect(container.querySelectorAll('.mtc-child-row').length).toBe(0)
+    expect(container.querySelector('[data-testid="disclosure"]')?.getAttribute('data-expandable')).toBeNull()
     unmount(root)
   })
 

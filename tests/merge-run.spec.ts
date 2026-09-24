@@ -17,7 +17,7 @@ function location(turn: number, step: number | undefined): ConversationLocation 
 }
 
 function runningCall(callId: string, name: string): ToolCallBlock {
-  return { callId, name, argsRaw: '{}', turn: 1, step: 1, time: 0, subCalls: [] }
+  return { phase: 'start', callId, name, argsRaw: '{}', turn: 1, step: 1, time: 0, subCalls: [] }
 }
 
 function node(key: string, callId: string, name: string, loc: ConversationLocation): ChatConversationViewNode {

@@ -15,8 +15,12 @@ export declare const zh: {
     countCalls: string;
     copy: string;
     copied: string;
+    'codeBlock.title': string;
+    'codeBlock.wrap': string;
+    'codeBlock.unwrap': string;
     'terminal.signal': string;
     'terminal.exitCode': string;
+    'terminal.noExitCode': string;
     'terminal.running': string;
     'terminal.failed': string;
     'terminal.done': string;
@@ -42,7 +46,6 @@ export declare const zh: {
     'diff.collapseAria': string;
     'diff.expandAria': string;
     'diff.expandRest': string;
-    'diff.files': string;
     'web.noResults': string;
     'web.sourcesTruncated': string;
     'web.http': string;
@@ -66,8 +69,12 @@ export declare const en: {
     countCalls: string;
     copy: string;
     copied: string;
+    'codeBlock.title': string;
+    'codeBlock.wrap': string;
+    'codeBlock.unwrap': string;
     'terminal.signal': string;
     'terminal.exitCode': string;
+    'terminal.noExitCode': string;
     'terminal.running': string;
     'terminal.failed': string;
     'terminal.done': string;
@@ -93,7 +100,6 @@ export declare const en: {
     'diff.collapseAria': string;
     'diff.expandAria': string;
     'diff.expandRest': string;
-    'diff.files': string;
     'web.noResults': string;
     'web.sourcesTruncated': string;
     'web.http': string;

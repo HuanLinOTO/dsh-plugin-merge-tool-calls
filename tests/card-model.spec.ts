@@ -4,7 +4,11 @@ import type { ToolCallBlock } from '@deepseek-ai/dsh-client-ui-chat/client'
 import { callRowModel } from '../src/client/card-model.ts'
 
 function runningCall(callId: string, name: string, argsRaw: string): ToolCallBlock {
-  return { callId, name, argsRaw, turn: 1, step: 1, time: 0, subCalls: [] }
+  return { phase: 'start', callId, name, argsRaw, turn: 1, step: 1, time: 0, subCalls: [] }
+}
+
+function preparingCall(callId: string, name: string): ToolCallBlock {
+  return { phase: 'preparing', callId, name, turn: 1, step: 1, time: 0, subCalls: [] }
 }
 
 /** Settled read fixture carrying the persisted meta + model-facing envelope the card derives from. */
@@ -103,6 +107,17 @@ describe('callRowModel', () => {
     expect(terminalModel.terminal!.card.exitCode).toBe(2)
     expect(terminalModel.terminal!.card.output).toBe('boom')
     expect(terminalModel.summary).toBe('Exit two')
+  })
+
+  it('derives an argument-free, non-expandable model for a preparing call', () => {
+    const model = callRowModel('read', preparingCall('p1', 'read'), undefined, undefined)
+    // PreparingToolCall has no argsRaw: no summary text body, nothing to expand.
+    expect(model.state).toBe('running')
+    expect(model.summary).toBe('p1')
+    expect(model.body).toBeNull()
+    expect(model.output).toBeNull()
+    expect(model.filePath).toBeUndefined()
+    expect(model.expandable).toBe(false)
   })
 
   it('derives a search card from persisted grep meta (matches shape)', () => {

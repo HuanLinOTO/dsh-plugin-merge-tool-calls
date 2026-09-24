@@ -65,7 +65,9 @@ interface ParsedArgs {
  * @returns the Tool name and object arguments, or null when unavailable.
  */
 function parsedArgsOf(block: ToolCallBlock): ParsedArgs | null {
-  const call = 'kind' in block ? block.call : block
+  // A preparing call has no dispatched arguments yet; only `start`/`result`
+  // carry an args payload.
+  const call = 'kind' in block ? block.call : block.phase === 'preparing' ? null : block
   if (call === null) return null
   let value: unknown
   try {
@@ -260,7 +262,7 @@ export function callRowModel(
   home: string | undefined,
 ): CallRowModel {
   const done = 'kind' in block
-  const argsRaw = (done ? block.call?.argsRaw : block.argsRaw) ?? ''
+  const argsRaw = (done ? block.call?.argsRaw : block.phase === 'preparing' ? '' : block.argsRaw) ?? ''
   const state: RowState = !done ? 'running'
     : block.error?.code === 'interrupted' ? 'stopped'
       : block.isError ? 'error' : 'ok'
