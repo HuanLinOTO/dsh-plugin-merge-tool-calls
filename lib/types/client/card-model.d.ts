@@ -10,7 +10,7 @@
  * the render site (`rows.tsx`), not here.
  * @module
  */
-import type { ToolCallBlock, ToolResultNode } from '@deepseek-ai/dsh-client-ui-chat/client';
+import type { ToolArgs, ToolCallBlock, ToolResultNode } from '@deepseek-ai/dsh-client-ui-chat/client';
 import type { DiffBlockProps, ReadBlockProps, SearchBlockProps, TerminalBlockProps, WebBlockProps } from '@deepseek-ai/dsh-client-ui-primitives';
 import { type ToolVariant } from './tool-names.ts';
 /** Row state semantic, mirroring ui-tool's ToolRowState. */
@@ -73,5 +73,17 @@ export interface CallRowModel {
 export declare function resultText(node: ToolResultNode): string;
 /** Strip the workspace root from a workspace-rooted absolute path (display only). */
 export declare function relativizeToCwd(text: string, cwd: string | undefined): string;
+/**
+ * Preparing-row summary read from the streaming argument view the same way at
+ * every stage (mirrors ui-tool's `argumentSummary`): a complete `file_path`
+ * for file tools, otherwise the `description` text so far. Empty when the
+ * view carries neither, so the preparing row falls back to its variant title.
+ * @param variant - row presentation selected for the Tool name.
+ * @param args - lazy argument view of the preparing call.
+ * @param cwd - session workspace root; workspace-rooted path summaries display relative to it.
+ * @param home - host account home; a leftover POSIX home path displays as `~`.
+ * @returns the one-line summary, or '' when no usable argument text has arrived.
+ */
+export declare function preparingSummary(variant: ToolVariant, args: ToolArgs, cwd: string | undefined, home: string | undefined): string;
 /** Derive the row model for one call of a grouped tool. */
 export declare function callRowModel(toolName: string, block: ToolCallBlock, cwd: string | undefined, home: string | undefined): CallRowModel;

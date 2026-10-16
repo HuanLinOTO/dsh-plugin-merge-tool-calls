@@ -4,6 +4,7 @@ import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { ChatNodeStore, ChatSnapshot, ToolCallBlock } from '@deepseek-ai/dsh-client-ui-chat/client'
+import { PartialArguments } from '@deepseek-ai/dsh-util-values'
 import { MergedToolRow, type MergedToolRowProps } from '../src/client/rows.tsx'
 import type { MergeToolCallsConfig } from '../src/types.ts'
 
@@ -24,16 +25,18 @@ const T = ((key: string, params?: Record<string, unknown>) => {
 }) as MergedToolRowProps['t']
 
 function runningCall(callId: string, name: string, argsRaw = '{}'): ToolCallBlock {
-  return { phase: 'start', callId, name, argsRaw, turn: 1, step: 1, time: 0, subCalls: [] }
+  return { phase: 'start', callId, name, args: PartialArguments.fromText(argsRaw), argsRaw, turn: 1, step: 1, time: 0, subCalls: [] }
 }
 
-function preparingCall(callId: string, name: string): ToolCallBlock {
-  return { phase: 'preparing', callId, name, turn: 1, step: 1, time: 0, subCalls: [] }
+function preparingCall(callId: string, name: string, args: PartialArguments = PartialArguments.EMPTY): ToolCallBlock {
+  return { phase: 'preparing', callId, name, args, turn: 1, step: 1, time: 0, subCalls: [] }
 }
 
 function settledRead(callId: string, path: string): ToolCallBlock {
   return {
     kind: 'tool-result', seq: 1, time: 0, callId,
+    name: 'read',
+    args: PartialArguments.fromText(JSON.stringify({ file_path: path })),
     call: { name: 'read', argsRaw: JSON.stringify({ file_path: path }) },
     callTime: 0,
     content: [{ type: 'text', text: `<path>${path}</path>\n<type>file</type>\n<content>\nhello\n</content>` }],
@@ -46,6 +49,8 @@ function settledRead(callId: string, path: string): ToolCallBlock {
 function settledWrite(callId: string, path: string): ToolCallBlock {
   return {
     kind: 'tool-result', seq: 1, time: 0, callId,
+    name: 'write',
+    args: PartialArguments.fromText(JSON.stringify({ file_path: path })),
     call: { name: 'write', argsRaw: JSON.stringify({ file_path: path }) },
     callTime: 0, content: [], isError: false,
     subCalls: [],
@@ -68,7 +73,14 @@ function snapshotOf(ids: string[], byId: Record<string, { callId: string; block:
       visibility: 'visible', data: { root: entry.block },
     })
   }
-  const store: ChatNodeStore = { get: nodeKey => nodes.get(nodeKey) as never, values: () => [...nodes.values()] as never }
+  const store: ChatNodeStore = {
+    get: nodeKey => nodes.get(nodeKey) as never,
+    source: () => ({ getSnapshot: () => undefined, subscribe: () => () => {} }),
+    bottomSource: () => ({ getSnapshot: () => false, subscribe: () => () => {} }),
+    turnDataSource: () => ({ getSnapshot: () => [], subscribe: () => () => {} }),
+    processSource: () => ({ getSnapshot: () => undefined, subscribe: () => () => {} }),
+    values: () => [...nodes.values()] as never,
+  }
   return {
     order,
     nodes: store,
@@ -95,7 +107,6 @@ function render(partial: Partial<MergedToolRowProps> & { callId: string; useChat
     t: T,
     cfg: CFG,
     useDisclosure: (() => [false, { open: () => {}, close: () => {}, toggle: () => {} }]) as never,
-    useToolCallArgumentsPartial: () => '',
     ...partial,
   } as MergedToolRowProps
   act(() => {
@@ -151,27 +162,36 @@ describe('MergedToolRow', () => {
     unmount(root)
   })
 
-  it('renders a lightweight argument-free row for a preparing call', () => {
-    const snapshot = snapshotOf(['a'], { a: { callId: 'a', block: preparingCall('a', 'read') } })
+  it('renders a lightweight argument-derived row for a preparing call', () => {
+    // The preparing block carries a streaming argument view; a closed
+    // `file_path` shows as the summary (the raw streamed prefix is no longer
+    // available to plain toolviews).
+    const block = preparingCall('a', 'read', PartialArguments.fromText('{"file_path":"src/foo.ts"'))
+    const snapshot = snapshotOf(['a'], { a: { callId: 'a', block } })
     const useChat = ((selector: (s: ChatSnapshot) => unknown) => selector(snapshot)) as MergedToolRowProps['useChat']
-    const { container, root } = render({
-      callId: 'a',
-      phase: 'preparing',
-      block: preparingCall('a', 'read'),
-      useChat,
-      // The optional raw argument prefix streams in while preparing.
-      useToolCallArgumentsPartial: () => '{"file_path":"foo',
-    })
+    const { container, root } = render({ callId: 'a', phase: 'preparing', block, useChat })
     const row = container.querySelector('.mtc-row')
     expect(row).not.toBeNull()
     expect(row!.getAttribute('data-state')).toBe('preparing')
     // Variant title/icon without reading `argsRaw` (PreparingToolCall has none).
     expect(container.textContent).toContain('Read')
-    // The raw argument prefix is shown while preparing.
-    expect(container.textContent).toContain('{"file_path":"foo')
+    // A closed `file_path` is the preparing summary, not the raw JSON.
+    expect(container.textContent).toContain('src/foo.ts')
+    expect(container.textContent).not.toContain('file_path')
     // Preparing is never expandable and never merges into child rows here.
     expect(container.querySelectorAll('.mtc-child-row').length).toBe(0)
     expect(container.querySelector('[data-testid="disclosure"]')?.getAttribute('data-expandable')).toBeNull()
+    unmount(root)
+  })
+
+  it('streams the description into a non-file preparing summary', () => {
+    const block = preparingCall('a', 'bash', PartialArguments.fromText('{"description":"List files'))
+    const snapshot = snapshotOf(['a'], { a: { callId: 'a', block } })
+    const useChat = ((selector: (s: ChatSnapshot) => unknown) => selector(snapshot)) as MergedToolRowProps['useChat']
+    const { container, root } = render({ callId: 'a', toolName: 'bash', phase: 'preparing', block, useChat })
+    expect(container.textContent).toContain('Bash')
+    // The `description` text so far streams into the summary (string still open).
+    expect(container.textContent).toContain('List files')
     unmount(root)
   })
 

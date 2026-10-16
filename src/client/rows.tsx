@@ -28,7 +28,7 @@ import type { ToolCallBlock } from '@deepseek-ai/dsh-client-ui-chat/client'
 import type { StartedToolCallViewProps, ToolCallViewProps } from '@deepseek-ai/dsh-client-ui-tool/client'
 import type { PropsLocale } from '@deepseek-ai/dsh-client-ui-slots'
 import type { MergeToolCallsConfig } from '../types.ts'
-import { callRowModel, type CallRowModel, type RowState, type ToolVariant } from './card-model.ts'
+import { callRowModel, preparingSummary, type CallRowModel, type RowState, type ToolVariant } from './card-model.ts'
 import { readRun } from './merge-run.ts'
 import { classifyTool, variantTitle } from './tool-names.ts'
 
@@ -108,6 +108,7 @@ function codeToolbarLabels(t: MergedToolRowProps['t']): { codeLabel: string; wra
 /** TerminalBlock display copy from the plugin's own dictionary. */
 function terminalLabels(t: MergedToolRowProps['t']): TerminalBlockLabels {
   return {
+    commandLine: line => t('terminal.commandLine', { n: line }),
     signal: signal => t('terminal.signal', { signal }),
     exitCode: code => t('terminal.exitCode', { code }),
     noExitCode: t('terminal.noExitCode'),
@@ -394,22 +395,16 @@ export const ChildRow = memo(function ChildRow({
   )
 })
 
-/** First line of a raw argument prefix (display only). */
-function firstLine(text: string): string {
-  const nl = text.indexOf('\n')
-  return nl === -1 ? text : text.slice(0, nl)
-}
-
 /**
  * The preparing arm: a lightweight, non-expandable row shown while the call's
  * arguments are still streaming. `PreparingToolCall` carries no `argsRaw`, so
- * the row renders only the variant title/icon plus the optional raw argument
- * prefix from `useToolCallArgumentsPartial`.
+ * the summary reads the streaming argument view the way the shipped row does
+ * (a complete `file_path` for file tools, otherwise the `description` text so
+ * far); the raw streamed prefix is no longer available to plain toolviews.
  */
-function PreparingMergedRow({ toolName, useToolCallArgumentsPartial, t }: MergedToolRowProps) {
-  const partial = useToolCallArgumentsPartial()
+function PreparingMergedRow({ toolName, block, cwd, home, t }: MergedToolRowProps) {
   const variant = classifyTool(toolName)
-  const summary = firstLine(partial)
+  const summary = preparingSummary(variant, block.args, cwd, home)
   return (
     <div className="mtc-row" data-state="preparing" data-variant={variant}>
       <DisclosureRow

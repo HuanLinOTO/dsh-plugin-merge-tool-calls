@@ -1,20 +1,23 @@
 /** Unit tests for the row-model derivation (card-model.ts). */
 import { describe, expect, it } from 'vitest'
 import type { ToolCallBlock } from '@deepseek-ai/dsh-client-ui-chat/client'
+import { PartialArguments } from '@deepseek-ai/dsh-util-values'
 import { callRowModel } from '../src/client/card-model.ts'
 
 function runningCall(callId: string, name: string, argsRaw: string): ToolCallBlock {
-  return { phase: 'start', callId, name, argsRaw, turn: 1, step: 1, time: 0, subCalls: [] }
+  return { phase: 'start', callId, name, args: PartialArguments.fromText(argsRaw), argsRaw, turn: 1, step: 1, time: 0, subCalls: [] }
 }
 
 function preparingCall(callId: string, name: string): ToolCallBlock {
-  return { phase: 'preparing', callId, name, turn: 1, step: 1, time: 0, subCalls: [] }
+  return { phase: 'preparing', callId, name, args: PartialArguments.EMPTY, turn: 1, step: 1, time: 0, subCalls: [] }
 }
 
 /** Settled read fixture carrying the persisted meta + model-facing envelope the card derives from. */
 function settledRead(callId: string, argsRaw: string): ToolCallBlock {
   return {
     kind: 'tool-result', seq: 1, time: 0, callId,
+    name: 'read',
+    args: PartialArguments.fromText(argsRaw),
     call: { name: 'read', argsRaw },
     callTime: 0,
     content: [{ type: 'text', text: '<path>a.ts</path>\n<type>file</type>\n<content>\nhello\n</content>' }],
@@ -94,6 +97,8 @@ describe('callRowModel', () => {
     // A failing terminal exit surfaces as the row's error state.
     const failedBash: ToolCallBlock = {
       kind: 'tool-result', seq: 1, time: 0, callId: 'b2',
+      name: 'bash',
+      args: PartialArguments.fromText(JSON.stringify({ command: 'exit 2', description: 'Exit two' })),
       call: { name: 'bash', argsRaw: JSON.stringify({ command: 'exit 2', description: 'Exit two' }) },
       callTime: 0,
       content: [{ type: 'text', text: 'boom\n[exit code: 2]' }],
@@ -123,6 +128,8 @@ describe('callRowModel', () => {
   it('derives a search card from persisted grep meta (matches shape)', () => {
     const settledGrep: ToolCallBlock = {
       kind: 'tool-result', seq: 1, time: 0, callId: 'g9',
+      name: 'grep',
+      args: PartialArguments.fromText(JSON.stringify({ pattern: 'needle', path: 'src' })),
       call: { name: 'grep', argsRaw: JSON.stringify({ pattern: 'needle', path: 'src' }) },
       callTime: 0,
       content: [{ type: 'text', text: 'src/a.ts:1: needle' }],

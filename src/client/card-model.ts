@@ -11,7 +11,7 @@
  * @module
  */
 import type {
-  ToolCallBlock, ToolResultNode,
+  ToolArgs, ToolCallBlock, ToolResultNode,
 } from '@deepseek-ai/dsh-client-ui-chat/client'
 import type {
   DiffBlockProps, DiffHunk, ReadBlockProps, SearchBlockProps, SearchFileGroup,
@@ -240,6 +240,33 @@ function deriveFilePath(variant: ToolVariant, argsRaw: string): string | undefin
   const parsed = parseArgs(argsRaw)
   if (parsed === undefined) return undefined
   return pickString(parsed, FILE_PATH_KEYS)?.split('\n')[0]
+}
+
+/**
+ * Preparing-row summary read from the streaming argument view the same way at
+ * every stage (mirrors ui-tool's `argumentSummary`): a complete `file_path`
+ * for file tools, otherwise the `description` text so far. Empty when the
+ * view carries neither, so the preparing row falls back to its variant title.
+ * @param variant - row presentation selected for the Tool name.
+ * @param args - lazy argument view of the preparing call.
+ * @param cwd - session workspace root; workspace-rooted path summaries display relative to it.
+ * @param home - host account home; a leftover POSIX home path displays as `~`.
+ * @returns the one-line summary, or '' when no usable argument text has arrived.
+ */
+export function preparingSummary(
+  variant: ToolVariant,
+  args: ToolArgs,
+  cwd: string | undefined,
+  home: string | undefined,
+): string {
+  if (FILE_PATH_VARIANTS.has(variant)) {
+    const path = args.complete('file_path') ? args.text('file_path') : undefined
+    // Decoding text can discover an invalid escape and make complete() false.
+    const filePath = path !== undefined && path !== '' && args.complete('file_path') ? firstLine(path) : undefined
+    return filePath === undefined ? '' : abbreviateHomePath(relativizeToCwd(filePath, cwd), home)
+  }
+  const description = args.text('description')
+  return description === undefined ? '' : firstLine(description)
 }
 
 function deriveBody(variant: ToolVariant, argsRaw: string): string | null {

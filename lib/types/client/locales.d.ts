@@ -18,6 +18,7 @@ export declare const zh: {
     'codeBlock.title': string;
     'codeBlock.wrap': string;
     'codeBlock.unwrap': string;
+    'terminal.commandLine': string;
     'terminal.signal': string;
     'terminal.exitCode': string;
     'terminal.noExitCode': string;
@@ -72,6 +73,7 @@ export declare const en: {
     'codeBlock.title': string;
     'codeBlock.wrap': string;
     'codeBlock.unwrap': string;
+    'terminal.commandLine': string;
     'terminal.signal': string;
     'terminal.exitCode': string;
     'terminal.noExitCode': string;

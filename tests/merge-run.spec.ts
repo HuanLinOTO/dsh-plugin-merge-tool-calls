@@ -2,6 +2,7 @@
 import { describe, expect, it } from 'vitest'
 import type { ChatConversationViewNode, ChatNodeStore, ToolCallBlock } from '@deepseek-ai/dsh-client-ui-chat/client'
 import type { ConversationLocation } from '@deepseek-ai/dsh-client-ui-conversation/client'
+import { PartialArguments } from '@deepseek-ai/dsh-util-values'
 import { callNameOf, isGroupedTool, readRun } from '../src/client/merge-run.ts'
 
 const TOOLS = ['read', 'grep', 'glob']
@@ -17,7 +18,7 @@ function location(turn: number, step: number | undefined): ConversationLocation 
 }
 
 function runningCall(callId: string, name: string): ToolCallBlock {
-  return { phase: 'start', callId, name, argsRaw: '{}', turn: 1, step: 1, time: 0, subCalls: [] }
+  return { phase: 'start', callId, name, args: PartialArguments.EMPTY, argsRaw: '{}', turn: 1, step: 1, time: 0, subCalls: [] }
 }
 
 function node(key: string, callId: string, name: string, loc: ConversationLocation): ChatConversationViewNode {
@@ -39,7 +40,14 @@ const KEY = (id: string) => `k:${id}`
 
 function makeStore(...nodes: ChatConversationViewNode[]): ChatNodeStore {
   const map = new Map(nodes.map(node => [node.key, node]))
-  return { get: key => map.get(key), values: () => [...map.values()] }
+  return {
+    get: key => map.get(key),
+    source: () => ({ getSnapshot: () => undefined, subscribe: () => () => {} }),
+    bottomSource: () => ({ getSnapshot: () => false, subscribe: () => () => {} }),
+    turnDataSource: () => ({ getSnapshot: () => [], subscribe: () => () => {} }),
+    processSource: () => ({ getSnapshot: () => undefined, subscribe: () => () => {} }),
+    values: () => [...map.values()],
+  }
 }
 
 function keys(...ids: string[]): string[] {
@@ -139,7 +147,7 @@ describe('readRun', () => {
 
   it('exposes callNameOf for both lifecycle forms', () => {
     expect(callNameOf(runningCall('x', 'read'))).toBe('read')
-    expect(callNameOf({ kind: 'tool-result', seq: 1, time: 0, callId: 'x', call: { name: 'grep', argsRaw: '{}' }, callTime: 0, content: [], isError: false, subCalls: [] })).toBe('grep')
+    expect(callNameOf({ kind: 'tool-result', seq: 1, time: 0, callId: 'x', name: 'grep', args: PartialArguments.EMPTY, call: { name: 'grep', argsRaw: '{}' }, callTime: 0, content: [], isError: false, subCalls: [] })).toBe('grep')
     expect(isGroupedTool('read', TOOLS)).toBe(true)
     expect(isGroupedTool('web_search', TOOLS)).toBe(false)
     expect(isGroupedTool('anything', [])).toBe(true)
